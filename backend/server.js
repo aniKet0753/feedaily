@@ -387,6 +387,16 @@ app.get('/api/donation-stats', (req, res) => {
 // Updated donation-stats endpoint
 app.get('/api/donation-stats', (req, res) => {
   const MEAL_KG = 0.4;
+    const query = `
+    SELECT
+      DATE(createdAt) as dateOnly,
+      SUM(CAST(quantity AS REAL)) as totalDonated,
+      SUM(CASE WHEN status IN ('Requested','Delivered') THEN CAST(quantity AS REAL) ELSE 0 END) as totalTaken
+    FROM donations
+    WHERE quantity IS NOT NULL
+    GROUP BY DATE(createdAt)
+    ORDER BY DATE(createdAt) ASC
+  `;
   const totalDonatedQuery = `SELECT SUM(CAST(quantity AS REAL)) AS totalDonated FROM donations WHERE quantity IS NOT NULL`;
   const totalTakenQuery = `SELECT SUM(CAST(quantity AS REAL)) AS totalTaken FROM donations WHERE status = 'Requested' AND quantity IS NOT NULL`;
   
@@ -431,6 +441,8 @@ app.get('/api/daily-donation-stats', (req, res) => {
     }
     
     const data = [['Date', 'Donations (kg)', 'Taken (kg)', 'People Fed']];
+    
+    if (rows.length > 0) {
     rows.forEach(row => {
       const donationKg = Number(row.totalDonated) || 0;
       const takenKg = Number(row.totalTaken) || 0;
@@ -440,7 +452,9 @@ app.get('/api/daily-donation-stats', (req, res) => {
       
       data.push([row.dateOnly, donationKg, takenKg, peopleFed]);
     });
-    
+    } else {
+      data.push(['No data', 0, 0, 0]);
+    }
     console.log('Sending data:', data);
     res.json(data);
   });
